@@ -3,8 +3,8 @@ rag.py
 ------
 RAG pipeline for the SLM Document Intelligence Service.
 
-Ingestion:  Loads .txt documents → chunks → embeds → stores in ChromaDB
-Retrieval:  Embeds query → finds top-k similar chunks → returns context
+Ingestion: Loads .txt documents → chunks → embeds → stores in ChromaDB
+Retrieval: Embeds query → finds top-k similar chunks → returns context
 Generation: Passes context + question to Ollama Phi-3 Mini → returns answer
 
 All runs locally. No external API calls. No GPU required.
@@ -15,13 +15,13 @@ import glob
 import chromadb
 from chromadb.utils import embedding_functions
 
-DOCUMENTS_DIR  = "documents"
-CHROMA_DIR     = "db/chroma"
+DOCUMENTS_DIR = "documents"
+CHROMA_DIR = "db/chroma"
 COLLECTION_NAME = "bharadwaj_docs"
-CHUNK_SIZE     = 400    # characters per chunk
-CHUNK_OVERLAP  = 80     # overlap between chunks
-TOP_K          = 4      # number of chunks to retrieve
-OLLAMA_MODEL   = "phi3" # model name in Ollama
+CHUNK_SIZE = 400  # characters per chunk
+CHUNK_OVERLAP = 80  # overlap between chunks
+TOP_K = 4  # number of chunks to retrieve
+OLLAMA_MODEL = "phi3"  # model name in Ollama
 
 # ── Embedding function (local, CPU, no API key) ───────────────────────────────
 _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -29,7 +29,7 @@ _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
 )
 
 # ── ChromaDB client (singleton) ───────────────────────────────────────────────
-_client     = None
+_client = None
 _collection = None
 
 
@@ -37,7 +37,7 @@ def _get_collection():
     global _client, _collection
     if _collection is None:
         os.makedirs(CHROMA_DIR, exist_ok=True)
-        _client     = chromadb.PersistentClient(path=CHROMA_DIR)
+        _client = chromadb.PersistentClient(path=CHROMA_DIR)
         _collection = _client.get_or_create_collection(
             name=COLLECTION_NAME,
             embedding_function=_embedding_fn,
@@ -50,7 +50,7 @@ def _get_collection():
 def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[str]:
     """Split text into overlapping character chunks."""
     chunks = []
-    start  = 0
+    start = 0
     while start < len(text):
         end = start + chunk_size
         chunks.append(text[start:end].strip())
@@ -67,8 +67,8 @@ def ingest_documents(documents_dir: str = DOCUMENTS_DIR) -> dict:
 
     Returns: { "files_ingested": int, "chunks_stored": int }
     """
-    collection   = _get_collection()
-    files        = glob.glob(os.path.join(documents_dir, "*.txt"))
+    collection = _get_collection()
+    files = glob.glob(os.path.join(documents_dir, "*.txt"))
     total_chunks = 0
 
     for filepath in files:
@@ -78,7 +78,7 @@ def ingest_documents(documents_dir: str = DOCUMENTS_DIR) -> dict:
 
         chunks = chunk_text(text)
 
-        ids       = [f"{filename}__chunk_{i}" for i in range(len(chunks))]
+        ids = [f"{filename}__chunk_{i}" for i in range(len(chunks))]
         metadatas = [{"source": filename, "chunk_index": i} for i in range(len(chunks))]
 
         # Upsert — safe to re-run
@@ -96,7 +96,7 @@ def get_ingestion_status() -> dict:
     """Return how many chunks are currently stored in ChromaDB."""
     try:
         collection = _get_collection()
-        count      = collection.count()
+        count = collection.count()
         return {"status": "ready", "chunks_in_db": count}
     except Exception as e:
         return {"status": "error", "error": str(e)}
@@ -111,7 +111,7 @@ def retrieve_context(question: str, top_k: int = TOP_K) -> list[dict]:
     Returns list of { "text": str, "source": str, "chunk_index": int, "distance": float }
     """
     collection = _get_collection()
-    results    = collection.query(
+    results = collection.query(
         query_texts=[question],
         n_results=min(top_k, collection.count()),
         include=["documents", "metadatas", "distances"],
@@ -124,10 +124,10 @@ def retrieve_context(question: str, top_k: int = TOP_K) -> list[dict]:
         results["distances"][0],
     ):
         chunks.append({
-            "text":        doc,
-            "source":      meta.get("source", "unknown"),
+            "text": doc,
+            "source": meta.get("source", "unknown"),
             "chunk_index": meta.get("chunk_index", 0),
-            "distance":    round(dist, 4),
+            "distance": round(dist, 4),
         })
 
     return chunks
@@ -158,7 +158,7 @@ ANSWER:"""
     response = requests.post(
         "http://localhost:11434/api/generate",
         json={
-            "model":  OLLAMA_MODEL,
+            "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
         },
@@ -182,30 +182,30 @@ def evaluate_answer(answer: str, context_chunks: list[dict]) -> dict:
     Returns: { groundedness_score, hallucination_flag, safety_score }
     """
     context_text = " ".join(c["text"] for c in context_chunks).lower()
-    answer_lower  = answer.lower()
-    answer_words  = set(answer_lower.split())
+    answer_lower = answer.lower()
+    answer_words = set(answer_lower.split())
 
     # Groundedness — proportion of answer words found in context
-    context_words    = set(context_text.split())
-    overlap          = answer_words & context_words
-    stop_words       = {"the", "a", "an", "is", "in", "of", "and", "to", "i", "it", "that", "was", "for"}
-    content_words    = answer_words - stop_words
-    groundedness     = round(len(overlap & content_words) / max(len(content_words), 1), 4)
+    context_words = set(context_text.split())
+    overlap = answer_words & context_words
+    stop_words = {"the", "a", "an", "is", "in", "of", "and", "to", "i", "it", "that", "was", "for"}
+    content_words = answer_words - stop_words
+    groundedness = round(len(overlap & content_words) / max(len(content_words), 1), 4)
 
     # Hallucination flag — low groundedness + confident-sounding answer
     confident_phrases = ["definitely", "certainly", "always", "never", "exactly", "precisely"]
-    has_confident     = any(p in answer_lower for p in confident_phrases)
-    hallucination     = groundedness < 0.25 and has_confident
+    has_confident = any(p in answer_lower for p in confident_phrases)
+    hallucination = groundedness < 0.25 and has_confident
 
     # Safety score — penalise harmful patterns
-    harmful_patterns  = ["harm", "kill", "attack", "illegal", "weapon", "exploit"]
-    safety_score      = 1.0 - (0.2 * sum(p in answer_lower for p in harmful_patterns))
-    safety_score      = round(max(0.0, safety_score), 4)
+    harmful_patterns = ["harm", "kill", "attack", "illegal", "weapon", "exploit"]
+    safety_score = 1.0 - (0.2 * sum(p in answer_lower for p in harmful_patterns))
+    safety_score = round(max(0.0, safety_score), 4)
 
     return {
         "groundedness_score": groundedness,
         "hallucination_flag": hallucination,
-        "safety_score":       safety_score,
+        "safety_score": safety_score,
     }
 
 
@@ -225,33 +225,33 @@ def query_pipeline(question: str) -> dict:
 
     if not chunks:
         return {
-            "question":          question,
-            "answer":            "No documents have been ingested yet. Please call POST /ingest first.",
-            "sources":           [],
+            "question": question,
+            "answer": "No documents have been ingested yet. Please call POST /ingest first.",
+            "sources": [],
             "groundedness_score": 0.0,
             "hallucination_flag": False,
-            "safety_score":      1.0,
-            "chunks_retrieved":  0,
-            "processing_ms":     0,
+            "safety_score": 1.0,
+            "chunks_retrieved": 0,
+            "processing_ms": 0,
         }
 
     # Generate
     answer = generate_answer(question, chunks)
 
     # Evaluate
-    evaluation   = evaluate_answer(answer, chunks)
+    evaluation = evaluate_answer(answer, chunks)
     processing_ms = int((time.time() - start) * 1000)
 
     sources = list({c["source"] for c in chunks})
 
     return {
-        "question":           question,
-        "answer":             answer,
-        "sources":            sources,
+        "question": question,
+        "answer": answer,
+        "sources": sources,
         "groundedness_score": evaluation["groundedness_score"],
         "hallucination_flag": evaluation["hallucination_flag"],
-        "safety_score":       evaluation["safety_score"],
-        "chunks_retrieved":   len(chunks),
-        "processing_ms":      processing_ms,
-        "context_preview":    chunks[0]["text"][:200] + "..." if chunks else "",
+        "safety_score": evaluation["safety_score"],
+        "chunks_retrieved": len(chunks),
+        "processing_ms": processing_ms,
+        "context_preview": chunks[0]["text"][:200] + "..." if chunks else "",
     }

@@ -111,12 +111,12 @@ def get_stats() -> dict:
     conn.close()
     total = row["total"] or 0
     return {
-        "total_queries":        total,
-        "avg_groundedness":     row["avg_groundedness"],
-        "avg_safety":           row["avg_safety"],
-        "hallucination_count":  row["hallucination_count"] or 0,
-        "hallucination_rate":   round((row["hallucination_count"] or 0) / total, 4) if total else 0,
-        "avg_processing_ms":    row["avg_processing_ms"],
+        "total_queries": total,
+        "avg_groundedness": row["avg_groundedness"],
+        "avg_safety": row["avg_safety"],
+        "hallucination_count": row["hallucination_count"] or 0,
+        "hallucination_rate": round((row["hallucination_count"] or 0) / total, 4) if total else 0,
+        "avg_processing_ms": row["avg_processing_ms"],
         "avg_chunks_retrieved": row["avg_chunks_retrieved"],
-        "last_query_at":        row["last_query_at"],
+        "last_query_at": row["last_query_at"],
     }
