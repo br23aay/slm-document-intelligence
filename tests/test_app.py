@@ -8,7 +8,6 @@ Run:
     pytest tests/ -v
 """
 
-import io
 import json
 import os
 import sys
@@ -19,7 +18,7 @@ import importlib
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
-# ── Database tests ────────────────────────────────────────────────────────────
+# ── Database tests ─────────────────────────────────────────────────────────
 
 class TestDatabase:
     def setup_method(self):
@@ -133,7 +132,7 @@ class TestRAGPipeline:
         assert len(result) == 3
 
 
-# ── API endpoint tests ────────────────────────────────────────────────────────
+# ── API endpoint tests ───────────────────────────────────────────────────────
 
 @pytest.fixture
 def client():
