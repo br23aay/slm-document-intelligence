@@ -1,0 +1,63 @@
+IJRES RESEARCH PAPER — FULL SUMMARY
+Title: Reinforcement Learning for Robot Dexterous In-Hand Manipulation of Objects (Shadow Hand)
+Authors: Bharadwaj Rachuri and Dr Diego Resende Faria
+Journal: International Journal of Research in Engineering and Science (IJRES)
+Volume: 13, Issue 6, Pages 164-183
+ISSN: 2320-9364
+Impact Factor: 7.52
+Published: April 2025
+Institution: University of Hertfordshire, UK
+Code Repository: github.com/br23aay/shadowhand-dexterity-ppo
+
+ABSTRACT AND OVERVIEW
+This paper presents a reinforcement learning approach to dexterous in-hand manipulation using the Shadow Dexterous Hand — a 24-degree-of-freedom robotic hand. The task involved training a PPO (Proximal Policy Optimisation) agent to rotate a pen 180 degrees using only finger actuation, without wrist movement. The simulation environment was built from scratch in MuJoCo.
+
+METHODOLOGY
+Algorithm: Proximal Policy Optimisation (PPO) via Stable-Baselines3
+Environment: Custom MuJoCo simulation — Shadow Hand with pen object
+Observation space: Joint angles, joint velocities, fingertip positions, tactile sensor readings, pen orientation
+Action space: 24 joint torque commands
+Reward design: Phase-based reward function with three stages
+  Phase 1 — Grasp: reward for finger contact with pen (+10 per finger touching)
+  Phase 2 — Rotate: reward based on negative angle error, velocity bonus if rotating correctly, +200 bonus at 180 degrees
+  Phase 3 — Hold: reward for sustained contact and stability
+Training: 70,000+ timesteps, CPU-only, FPS approximately 48
+Seeds: 3 independent training seeds for reproducibility
+
+REWARD HACKING DISCOVERY
+During early single-phase training, the PPO agent discovered a specification gaming exploit — it learned to maximise the rotation velocity reward component without achieving stable pen grasping. The agent spun finger actuators in place rather than rotating the pen. This is a direct instance of reward misspecification. Mitigation was achieved through phase-based reward decomposition with gated activation — each phase reward only unlocks when the prior phase threshold is met.
+
+KEY RESULTS
+Maximum episode reward: 18,007.53
+Final Z-angle (rotation achieved): 3.058 radians (approximately 175 degrees)
+Target rotation: 180 degrees (pi radians)
+Achievement: 97.2% of target
+Average episode reward: 32,600
+Average episode length: 831 steps (maximum budget approximately 960 steps)
+Total timesteps: 73,728
+Training FPS: 48 (CPU-only, Intel i7)
+KL Divergence (final): 0.0049 (well within safe PPO clip range of 0.2)
+Policy Gradient Loss (final): -0.00534 (converged, negative means improving)
+Value Function Loss: 1.26 x 10^6 (high scale expected at large reward values)
+Explained Variance: 13.4% (complex environment, noted in paper)
+Touch Sensor Accuracy: greater than 90% across all five fingers
+Seed Reproducibility: 3.118 plus or minus 0.047 radians across 3 seeds (statistically robust)
+
+TRAINING PHASES DETAIL
+Phase 1 baseline showed reward hacking — high reward but low actual rotation achieved
+Phase 2 showed genuine learning progression after phase-based reward decomposition
+Phase 3 achieved peak performance with sustained manipulation behaviour
+All three seeds converged to similar final performance confirming robustness
+
+SIM-TO-REAL TRANSFER
+The paper discusses sim-to-real transfer considerations for the Shadow Hand platform. Key challenges include tactile sensor noise, joint friction variability, tendon compliance, and object surface properties. The phase-based reward design was partly motivated by improving sim-to-real transferability by encouraging robust grasping before rotation.
+
+CONTRIBUTIONS
+1. First phase-based reward decomposition for pen spinning on Shadow Hand in MuJoCo
+2. Empirical demonstration and mitigation of reward hacking in dexterous manipulation
+3. Reproducible experimental results across 3 independent seeds
+4. Open-source MuJoCo environment and trained PPO policies
+5. Analysis of tactile sensor coordination across all five fingers
+
+SIGNIFICANCE
+This work demonstrates that reward hacking — a form of specification gaming central to AI safety — occurs naturally in complex robotic manipulation tasks and can be mitigated through careful reward design. The findings have implications for AI safety research, particularly in the area of reward misspecification and scalable oversight.

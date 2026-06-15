@@ -1,0 +1,63 @@
+BHARADWAJ RACHURI — CV
+Hatfield, United Kingdom | 07586 362964 | bharadwaj.r.career@gmail.com
+LinkedIn: linkedin.com/in/bharadwaj-rachuri | GitHub: github.com/br23aay
+Right to work in UK — Graduate Visa — No sponsorship required
+
+PUBLISHED RESEARCH — REINFORCEMENT LEARNING
+Dexterous In-Hand Manipulation via PPO | IJRES Vol. 13, Issue 6 | Impact Factor 7.52 | April 2025
+- Trained a Shadow Hand (24 degrees of freedom) to rotate a pen 180 degrees using Proximal Policy Optimisation (PPO) in a custom MuJoCo simulation environment
+- Achieved 175 degrees rotation (97.2% of target) — peak episode reward 18,007, mean reward 32,600, touch sensor accuracy greater than 90% across all five fingers
+- Reproduced results across three independent seeds: 3.118 plus or minus 0.047 rad, reward 18,295 plus or minus 487 — demonstrating experimental rigour
+- Reward hacking discovery: Early training runs exhibited reward hacking — the agent satisfied reward conditions without completing the manipulation task. Resolved by designing a phase-based reward function (grasp, rotate, hold) that constrained the optimisation landscape
+- Designed custom XML simulation environment in MuJoCo from scratch — finger joint configuration, sensor arrays, object physics
+- Published in International Journal of Research in Engineering and Science, Vol. 13, Issue 6, pp. 164-183, ISSN: 2320-9364
+- Co-authored with Dr Diego Resende Faria, University of Hertfordshire
+- Code: github.com/br23aay/shadowhand-dexterity-ppo
+
+EDUCATION
+MSc Artificial Intelligence and Robotics — Commendation | University of Hertfordshire, UK | Jan 2024 – Jul 2025
+- Awarded Commendation — equivalent to Distinction — the highest academic grade at postgraduate level
+- Key modules: Machine Learning, Neural Networks, Artificial Life with Robotics, Responsible Technology in AI, Advanced Computer Science Masters Project
+- MSc project resulted in peer-reviewed publication — rare achievement for a taught master's student
+- Supervisor: Dr Diego Resende Faria — specialist in robot learning and human-robot interaction
+
+B.Tech Mechanical Engineering | Guntur Engineering College, JNTUK, India | Aug 2017 – Sep 2021
+- Foundation in analytical and systems thinking, CAD/FEA simulation, and experimental methodology
+
+TECHNICAL SKILLS
+Reinforcement Learning: PPO, MuJoCo, Stable-Baselines3, reward shaping, specification design, sim-to-real, multi-step task decomposition, reward hacking mitigation
+AI Safety Concepts: Reward misspecification, specification gaming, scalable oversight, adversarial robustness, Constitutional AI, RLHF, responsible scaling, evaluation harnesses
+ML and Deep Learning: PyTorch, TensorFlow, Scikit-learn, Keras, model evaluation, hyperparameter optimisation, experiment management
+LLM Engineering: RAG pipelines, prompt engineering, Azure AI Foundry, fine-tuning LLMs, responsible AI frameworks, safety guardrails, model evaluation
+MLOps and Tooling: MLflow, Azure AI Foundry SDK, Microsoft Fabric, Git, Jupyter, batch inference, model monitoring
+Programming: Python (proficient), R, C#, Java, REST APIs, Linux, macOS, Windows
+Cloud Platforms: Microsoft Azure, Azure AI Services, Microsoft Fabric, Azure AI Foundry
+Certifications: 49 Microsoft Azure AI and Fabric Badges (August 2025)
+
+EXPERIENCE
+Machine Learning and AI Engineer | Swayam Ltd, London | May 2025 – June 2026
+- Designed, developed and evaluated machine learning and deep learning models using Python, TensorFlow and PyTorch
+- Contributed to AI systems incorporating Large Language Models (LLMs), Small Language Models (SLMs) and Vision Models
+- Worked on reinforcement learning pipelines using PPO, robotics simulation environments in MuJoCo, and sim-to-real transfer workflows
+- Developed and deployed RESTful APIs using Flask, utilised Microsoft Azure AI and AWS, and maintained CI/CD pipelines
+
+PROJECTS
+LLM Evaluation and Safety Frameworks | Independent Research | 2024-2025
+- Built RAG solutions with grounding, context management and safety guardrails using Azure AI Foundry
+- Designed evaluation harnesses measuring model quality, latency, cost and safety compliance — 100+ outputs evaluated
+- Implemented responsible AI frameworks including bias detection, output grounding and refusal classification
+- Completed 49 Microsoft Azure AI certifications
+
+Autonomous Robotic Navigation — Unity Engine | MSc Project | 2024
+- Built sensor-driven autonomous vehicle achieving a perfect score of 100/100
+- Implemented 7-sensor raycast array, lane-keeping logic and real-time obstacle avoidance in C#
+
+PERSONAL DETAILS
+Full Name: Bharadwaj Rachuri
+Location: Hatfield, Hertfordshire, UK (AL10 9AY)
+Email: bharadwaj.r.career@gmail.com
+Phone: 07586 362964
+Visa: Graduate Visa (Post-Study Work) — full right to work until September 2027
+Availability: Immediately available
+Willing to relocate anywhere in the UK
+Long-term goal: Building humanoid robots
