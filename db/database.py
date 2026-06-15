@@ -1,211 +1,122 @@
 """
-rag.py
-------
-RAG pipeline for the SLM Document Intelligence Service.
-
-Ingestion:  Loads .txt documents, chunks, embeds, stores in ChromaDB
-Retrieval:  Embeds query, finds top-k similar chunks, returns context
-Generation: Passes context + question to Ollama Phi-3 Mini, returns answer
-
-All runs locally. No external API calls. No GPU required.
+database.py
+-----------
+SQLite pipeline for the SLM Document Intelligence Service.
+Logs every query with the answer, retrieved context, and evaluation scores.
 """
 
+import sqlite3
 import os
-import glob
-import chromadb
-from chromadb.utils import embedding_functions
+from datetime import datetime
+from typing import Optional
 
-DOCUMENTS_DIR = "documents"
-CHROMA_DIR = "db/chroma"
-COLLECTION_NAME = "bharadwaj_docs"
-CHUNK_SIZE = 400
-CHUNK_OVERLAP = 80
-TOP_K = 4
-OLLAMA_MODEL = "phi3"
-
-# Embedding function (local, CPU, no API key)
-_embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
-
-# ChromaDB client (singleton)
-_client = None
-_collection = None
+DB_PATH = os.environ.get("DB_PATH", "db/queries.db")
 
 
-def _get_collection():
-    global _client, _collection
-    if _collection is None:
-        os.makedirs(CHROMA_DIR, exist_ok=True)
-        _client = chromadb.PersistentClient(path=CHROMA_DIR)
-        _collection = _client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            embedding_function=_embedding_fn,
+def get_connection() -> sqlite3.Connection:
+    parent = os.path.dirname(DB_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    """Create tables if they do not exist."""
+    conn = get_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS queries (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp         TEXT    NOT NULL,
+            question          TEXT    NOT NULL,
+            answer            TEXT    NOT NULL,
+            context_used      TEXT,
+            groundedness_score REAL,
+            hallucination_flag INTEGER,
+            safety_score      REAL,
+            chunks_retrieved  INTEGER,
+            processing_ms     INTEGER
         )
-    return _collection
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_timestamp ON queries(timestamp)
+    """)
+    conn.commit()
+    conn.close()
 
 
-def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list:
-    """Split text into overlapping character chunks."""
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(text[start:end].strip())
-        start += chunk_size - overlap
-    return [c for c in chunks if len(c) > 30]
-
-
-def ingest_documents(documents_dir: str = DOCUMENTS_DIR) -> dict:
-    """
-    Load all .txt files from documents_dir, chunk them,
-    embed and store in ChromaDB.
-    """
-    collection = _get_collection()
-    files = glob.glob(os.path.join(documents_dir, "*.txt"))
-    total_chunks = 0
-
-    for filepath in files:
-        filename = os.path.basename(filepath)
-        with open(filepath, "r", encoding="utf-8") as f:
-            text = f.read()
-
-        chunks = chunk_text(text)
-        ids = [f"{filename}__chunk_{i}" for i in range(len(chunks))]
-        metadatas = [{"source": filename, "chunk_index": i} for i in range(len(chunks))]
-
-        collection.upsert(
-            documents=chunks,
-            ids=ids,
-            metadatas=metadatas,
-        )
-        total_chunks += len(chunks)
-
-    return {"files_ingested": len(files), "chunks_stored": total_chunks}
-
-
-def get_ingestion_status() -> dict:
-    """Return how many chunks are currently stored in ChromaDB."""
-    try:
-        collection = _get_collection()
-        count = collection.count()
-        return {"status": "ready", "chunks_in_db": count}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
-
-def retrieve_context(question: str, top_k: int = TOP_K) -> list:
-    """Find the top_k most relevant chunks for the question."""
-    collection = _get_collection()
-    results = collection.query(
-        query_texts=[question],
-        n_results=min(top_k, collection.count()),
-        include=["documents", "metadatas", "distances"],
+def log_query(
+    question: str,
+    answer: str,
+    context_used: Optional[str] = None,
+    groundedness_score: Optional[float] = None,
+    hallucination_flag: Optional[bool] = None,
+    safety_score: Optional[float] = None,
+    chunks_retrieved: Optional[int] = None,
+    processing_ms: Optional[int] = None,
+) -> int:
+    """Log a query and its evaluation scores. Returns the new row ID."""
+    conn = get_connection()
+    cursor = conn.execute(
+        """
+        INSERT INTO queries
+            (timestamp, question, answer, context_used, groundedness_score,
+             hallucination_flag, safety_score, chunks_retrieved, processing_ms)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            datetime.utcnow().isoformat(),
+            question,
+            answer,
+            context_used,
+            groundedness_score,
+            int(hallucination_flag) if hallucination_flag is not None else None,
+            safety_score,
+            chunks_retrieved,
+            processing_ms,
+        ),
     )
-
-    chunks = []
-    for doc, meta, dist in zip(
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0],
-    ):
-        chunks.append({
-            "text": doc,
-            "source": meta.get("source", "unknown"),
-            "chunk_index": meta.get("chunk_index", 0),
-            "distance": round(dist, 4),
-        })
-
-    return chunks
+    conn.commit()
+    row_id = cursor.lastrowid
+    conn.close()
+    return row_id
 
 
-def generate_answer(question: str, context_chunks: list) -> str:
-    """Send question + retrieved context to Ollama Phi-3 Mini."""
-    import requests
-
-    context_text = "\n\n---\n\n".join(
-        f"[Source: {c['source']}]\n{c['text']}" for c in context_chunks
-    )
-
-    prompt = (
-        "You are a helpful document assistant. Answer the question using ONLY "
-        "the information provided in the context below. If the answer is not in "
-        "the context, say 'I don't have enough information in my documents to answer that.'\n\n"
-        f"CONTEXT:\n{context_text}\n\nQUESTION: {question}\n\nANSWER:"
-    )
-
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-        },
-        timeout=120,
-    )
-    response.raise_for_status()
-    return response.json().get("response", "").strip()
+def get_recent_queries(limit: int = 50) -> list[dict]:
+    """Retrieve the most recent logged queries."""
+    limit = min(limit, 200)
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT * FROM queries ORDER BY id DESC LIMIT ?", (limit,)
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
 
 
-def evaluate_answer(answer: str, context_chunks: list) -> dict:
-    """Lightweight evaluation of the generated answer."""
-    context_text = " ".join(c["text"] for c in context_chunks).lower()
-    answer_lower = answer.lower()
-    answer_words = set(answer_lower.split())
-
-    context_words = set(context_text.split())
-    overlap = answer_words & context_words
-    stop_words = {"the", "a", "an", "is", "in", "of", "and", "to", "i", "it", "that", "was", "for"}
-    content_words = answer_words - stop_words
-    groundedness = round(len(overlap & content_words) / max(len(content_words), 1), 4)
-
-    confident_phrases = ["definitely", "certainly", "always", "never", "exactly", "precisely"]
-    has_confident = any(p in answer_lower for p in confident_phrases)
-    hallucination = groundedness < 0.25 and has_confident
-
-    harmful_patterns = ["harm", "kill", "attack", "illegal", "weapon", "exploit"]
-    safety_score = 1.0 - (0.2 * sum(p in answer_lower for p in harmful_patterns))
-    safety_score = round(max(0.0, safety_score), 4)
-
+def get_stats() -> dict:
+    """Aggregate statistics across all logged queries."""
+    conn = get_connection()
+    row = conn.execute("""
+        SELECT
+            COUNT(*)                                    AS total,
+            ROUND(AVG(groundedness_score), 4)           AS avg_groundedness,
+            ROUND(AVG(safety_score), 4)                 AS avg_safety,
+            SUM(hallucination_flag)                     AS hallucination_count,
+            ROUND(AVG(processing_ms), 1)                AS avg_processing_ms,
+            ROUND(AVG(chunks_retrieved), 1)             AS avg_chunks_retrieved,
+            MAX(timestamp)                              AS last_query_at
+        FROM queries
+    """).fetchone()
+    conn.close()
+    total = row["total"] or 0
     return {
-        "groundedness_score": groundedness,
-        "hallucination_flag": hallucination,
-        "safety_score": safety_score,
-    }
-
-
-def query_pipeline(question: str) -> dict:
-    """Full RAG pipeline: retrieve, generate, evaluate."""
-    import time
-    start = time.time()
-
-    chunks = retrieve_context(question)
-
-    if not chunks:
-        return {
-            "question": question,
-            "answer": "No documents have been ingested yet. Please call POST /ingest first.",
-            "sources": [],
-            "groundedness_score": 0.0,
-            "hallucination_flag": False,
-            "safety_score": 1.0,
-            "chunks_retrieved": 0,
-            "processing_ms": 0,
-        }
-
-    answer = generate_answer(question, chunks)
-    evaluation = evaluate_answer(answer, chunks)
-    processing_ms = int((time.time() - start) * 1000)
-    sources = list({c["source"] for c in chunks})
-
-    return {
-        "question": question,
-        "answer": answer,
-        "sources": sources,
-        "groundedness_score": evaluation["groundedness_score"],
-        "hallucination_flag": evaluation["hallucination_flag"],
-        "safety_score": evaluation["safety_score"],
-        "chunks_retrieved": len(chunks),
-        "processing_ms": processing_ms,
-        "context_preview": chunks[0]["text"][:200] + "..." if chunks else "",
+        "total_queries":        total,
+        "avg_groundedness":     row["avg_groundedness"],
+        "avg_safety":           row["avg_safety"],
+        "hallucination_count":  row["hallucination_count"] or 0,
+        "hallucination_rate":   round((row["hallucination_count"] or 0) / total, 4) if total else 0,
+        "avg_processing_ms":    row["avg_processing_ms"],
+        "avg_chunks_retrieved": row["avg_chunks_retrieved"],
+        "last_query_at":        row["last_query_at"],
     }
