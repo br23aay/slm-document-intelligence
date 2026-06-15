@@ -120,3 +120,4 @@ def get_stats() -> dict:
         "avg_chunks_retrieved": row["avg_chunks_retrieved"],
         "last_query_at": row["last_query_at"],
     }
+    
