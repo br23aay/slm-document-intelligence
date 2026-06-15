@@ -90,29 +90,28 @@ class TestDatabase:
 class TestRAGPipeline:
     def test_chunk_text_basic(self):
         from rag import chunk_text
-        text   = "A" * 1000
+        text = "A" * 1000
         chunks = chunk_text(text, chunk_size=200, overlap=40)
         assert len(chunks) > 1
         assert all(len(c) > 0 for c in chunks)
 
     def test_chunk_text_overlap(self):
         from rag import chunk_text
-        text   = "Hello world this is a test document " * 20
+        text = "Hello world this is a test document " * 20
         chunks = chunk_text(text, chunk_size=100, overlap=20)
         assert len(chunks) >= 2
 
     def test_chunk_text_drops_tiny_fragments(self):
         from rag import chunk_text
-        text   = "Short"
+        text = "Short"
         chunks = chunk_text(text, chunk_size=400, overlap=80)
-        # "Short" is less than 30 chars — should be dropped
         assert len(chunks) == 0
 
     def test_evaluate_answer_high_groundedness(self):
         from rag import evaluate_answer
         context = [{"text": "Bharadwaj Rachuri published research on PPO and Shadow Hand manipulation in MuJoCo at University of Hertfordshire"}]
-        answer  = "Bharadwaj published research on PPO and Shadow Hand manipulation"
-        result  = evaluate_answer(answer, context)
+        answer = "Bharadwaj published research on PPO and Shadow Hand manipulation"
+        result = evaluate_answer(answer, context)
         assert "groundedness_score" in result
         assert "hallucination_flag" in result
         assert "safety_score" in result
@@ -122,14 +121,14 @@ class TestRAGPipeline:
     def test_evaluate_answer_safety_score(self):
         from rag import evaluate_answer
         context = [{"text": "This is a safe document about AI research"}]
-        answer  = "This is a safe response about research"
-        result  = evaluate_answer(answer, context)
+        answer = "This is a safe response about research"
+        result = evaluate_answer(answer, context)
         assert result["safety_score"] == 1.0
 
     def test_evaluate_answer_returns_dict(self):
         from rag import evaluate_answer
         context = [{"text": "Test context about machine learning"}]
-        result  = evaluate_answer("Machine learning is a field of AI", context)
+        result = evaluate_answer("Machine learning is a field of AI", context)
         assert isinstance(result, dict)
         assert len(result) == 3
 
@@ -204,7 +203,6 @@ class TestQueryEndpoint:
         assert resp.status_code == 400
 
     def test_query_without_ollama_returns_503(self, client):
-        # Ollama not running in test env
         resp = client.post("/query",
                            data=json.dumps({"question": "What is PPO?"}),
                            content_type="application/json")
