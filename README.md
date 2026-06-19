@@ -143,7 +143,7 @@ All scores are logged to SQLite for audit and analytics.
 - **SLMs** — Phi-3 Mini (3.8B parameter small language model) via Ollama
 - **RAG Pipeline** — ChromaDB vector store, SentenceTransformer embeddings, semantic retrieval
 - **Flask / REST API** — 7 production endpoints with full error handling
-- **SQL Pipelines** — SQLite query logging with evaluation scores and aggregate analytics
+- **SQL Pipelines** — SQLite query logging with evaluatihhhon scores and aggregate analytics
 - **Hallucination Scoring** — Built-in groundedness, hallucination detection, safety scoring layer
 
 ---
@@ -152,4 +152,4 @@ All scores are logged to SQLite for audit and analytics.
 
 **Bharadwaj Rachuri** — ML & AI Engineer
 [br23aay.github.io](https://br23aay.github.io) · [github.com/br23aay](https://github.com/br23aay)
-*Built during employment at Swayam Ltd, London*
+done by bharadwaj rachuri
